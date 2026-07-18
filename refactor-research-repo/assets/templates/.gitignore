@@ -1,0 +1,35 @@
+# local environment and secrets
+.env
+.env.*
+!.env.example
+
+# language/tool caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.venv/
+
+# generated research state
+cache/
+logs/
+outputs/
+checkpoints/
+wandb/
+build/
+dist/
+
+# common model/artifact binaries
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.onnx
+
+# manuscript build products; retain source figures and venue files explicitly
+docs/writing/builds/
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls

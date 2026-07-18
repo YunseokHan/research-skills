@@ -1,0 +1,4 @@
+interface:
+  display_name: "Meeting Report"
+  short_description: "Create verified weekly research meeting reports"
+  default_prompt: "Use $meeting-report to compare the previous research meeting with current verified project evidence and prepare this week’s meeting document."

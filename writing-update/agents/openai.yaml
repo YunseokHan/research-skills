@@ -1,0 +1,4 @@
+interface:
+  display_name: "Writing Update"
+  short_description: "Synchronize and polish a research manuscript"
+  default_prompt: "Use $writing-update to synchronize or rewrite docs/writing from the current project’s verified research state and claim boundaries."

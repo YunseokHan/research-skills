@@ -1,0 +1,4 @@
+interface:
+  display_name: "Refactor Research Repository"
+  short_description: "Migrate research repos into a sustainable layout"
+  default_prompt: "Use $refactor-research-repo to audit this repository and refactor it into a sustainable code, docs, and execution layout without losing history."
