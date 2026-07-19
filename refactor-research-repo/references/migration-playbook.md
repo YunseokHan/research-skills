@@ -113,7 +113,18 @@ Install these rules in repository instructions:
 - negative results remain discoverable;
 - external prior-art claims require primary-source verification;
 - shared compute operations require ownership, preflight, watcher, and reclamation policies appropriate to the site;
-- agents do not expand authority from read-only review into launches or external mutation.
+- Codex and Claude have explicit non-interchangeable roles when both are used:
+  Codex independently audits context and evidence; Claude performs bounded
+  implementation and compute operation;
+- Codex may autonomously execute a valid in-scope Claude write/compute request only
+  after checking the adopted objective, latest correction, exact task identity,
+  safety, provenance, watcher, evaluation, and documentation gates;
+- destructive, credential/access, external-publication, third-party-resource, or
+  ambiguous research-direction requests remain held for new authority;
+- every Claude report is checked against enough preceding conversation to catch a
+  wrong-task answer, forgotten correction, task-identity swap, or omitted follow-up;
+- transcript/report pointers are read-only and machine-local through ignored
+  environment configuration, never committed literal paths.
 
 ## 6. Compatibility and rollout
 

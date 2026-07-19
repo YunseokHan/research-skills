@@ -40,6 +40,9 @@ Use `--json` when a machine-readable ledger is useful. Inspect at least:
 Read [references/target-layout.md](references/target-layout.md) after inventory. Read
 [references/migration-playbook.md](references/migration-playbook.md) before proposing file moves. If manuscript or
 submission artifacts exist, also read [references/writing-layout.md](references/writing-layout.md).
+When the reference repository has mature `AGENTS.md`/`CLAUDE.md` policies, read
+[references/governance-transfer.md](references/governance-transfer.md) before
+drafting target instructions.
 
 ## 3. Produce a source-to-target map
 
@@ -122,6 +125,18 @@ paper without declaring which copy is authoritative.
 
 ## 6. Install sustainability rules
 
+Build a policy-transfer ledger before editing target instructions:
+
+| Source rule | Portable invariant | Target parameter/evidence | Target owner | Literal excluded |
+|---|---|---|---|---|
+
+Review every normative section of the source `AGENTS.md` and `CLAUDE.md`; do not
+transfer only directory layout. Preserve generally applicable research and
+operational discipline while parameterizing package names, commands, resources,
+datasets, metrics, venues, paths, session identifiers, and tool availability.
+Use the extraction and rejection tests in
+[references/governance-transfer.md](references/governance-transfer.md).
+
 Merge the policy templates into repository-local instructions. Require:
 
 - living docs updated in the same change as material code, method, result, recipe, or plan changes;
@@ -131,6 +146,48 @@ Merge the policy templates into repository-local instructions. Require:
 - preservation of negative results and superseded designs without keeping them in the active import closure;
 - no hardcoded secrets, machine-specific paths, or undocumented entry points;
 - no paper claim promoted from a running job or incomplete result bundle.
+- lessons and primary prior art checked before new ideas or novelty claims;
+- current method, future plans, resolved evidence, meeting chronology, and paper
+  claims assigned to distinct authoritative owners;
+- environment-selected interpreters and machine-local values rather than hardcoded
+  paths, plus a safe versioned environment schema;
+- correctness tests before expensive runs and fail-closed launch preflights;
+- held-out, matched, uncertainty-aware evaluation appropriate to the target domain;
+- resource ownership checks, watcher coverage, explicit DONE/FAILED contracts,
+  queued continuation, and idle-resource reclamation for shared compute;
+- exact-versus-hypothesis language, adversarial review of material decisions, and
+  refusal to follow a logically flawed instruction without surfacing the issue;
+- paper synchronization and compilation checks when a method, recipe, or best
+  result changes and a manuscript exists.
+
+When both Codex and Claude Code participate, also install an explicit supervisory
+contract rather than treating them as interchangeable agents:
+
+- Codex owns independent supervision: reconstruct the preceding user–Claude
+  conversation, check the latest overriding instruction, and verify Claude's
+  claims against repository state, logs, processes, metrics, and artifacts.
+- Claude owns bounded implementation and compute operation under the shared
+  repository policy. Its requests to Codex must identify the active objective,
+  exact write or job/config, resource preflight, expected artifacts and markers,
+  watcher, and reclamation/next-queue behavior.
+- Give Codex standing authority to execute valid in-scope writes, corrections,
+  launches, evaluations, transitions, retries, documentation sync, and compute
+  reclamation without relaying each routine action to the user. Require Codex to
+  hold destructive, credential/access, external-publication, third-party-resource,
+  ambiguous research-direction, or provenance-bypassing requests.
+- Require every Claude report to be audited in conversational context. A plausible
+  status that answers the wrong task, forgets a correction, confuses neighboring
+  experiments, or omits promised evidence is a supervisory failure.
+- Configure repository-local, read-only pointers to the active Claude transcript
+  and any Codex operator-report task through ignored environment variables when
+  those facilities exist. Never hardcode a user's home path or copy transcripts
+  into the repository.
+- When the user asks for status, require a connected prose report covering the
+  preceding decision context, per-job state, verified versus reported evidence,
+  bottlenecks, risks, ETAs, transitions, and next autonomous actions.
+
+Adapt this contract to the target project's actual compute and operator surfaces.
+Do not copy CTSA node names, GPU topology, session paths, or commands.
 
 These governance rules are a more important transfer than any exact directory name.
 
@@ -160,6 +217,9 @@ Then validate in proportion to the move:
 5. no tracked caches, credentials, generated binaries, or accidental large files;
 6. paper compilation and citation/reference checks when writing exists;
 7. final Git diff, including rename coverage and unrelated user edits.
+8. policy checks proving that the generated `AGENTS.md` and `CLAUDE.md` agree on
+   the Codex-supervisor/Claude-operator boundary, autonomous-action validity gate,
+   conversational-context audit, and status-report contract.
 
 Do not report success if the new tree exists but old commands, imports, links, or documentation still point to the
 previous layout.
