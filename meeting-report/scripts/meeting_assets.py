@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import shutil
 from datetime import datetime
@@ -16,6 +17,16 @@ from meeting_context import build_context
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 IMAGE_RE = re.compile(r"!\[([^\]]*)\]\(([^)\s]+)(?:\s+[^)]*)?\)")
 EXPECTED_RE = re.compile(r"^\.\./figures/(\d{4})_fig(\d+)\.png$")
+HEADING_RE = re.compile(r"^(#{1,3})\s+(\d+(?:\.\d+)*\.)\s+(.+?)\s*$")
+MEANING_RE = re.compile(r"^\*\*의미\.\*\*\s+(\S.*)$")
+MEANING_EXEMPT_HEADINGS = {
+    "Summary",
+    "요약",
+    "TODO",
+    "To do",
+    "References",
+    "참고문헌",
+}
 
 
 def is_png(path: Path) -> bool:
@@ -53,6 +64,130 @@ def import_figure(args: argparse.Namespace) -> int:
     print(f"saved: {relative}")
     print(f"![{args.alt}](../figures/{destination.name})")
     return 0
+
+
+def _selection_with_ellipsis(heading: str) -> str:
+    """Build a stable Notion selection anchor for a numbered heading block."""
+    if len(heading) <= 28:
+        return heading
+    return f"{heading[:14]}...{heading[-14:]}"
+
+
+def parse_meaning_annotations(text: str) -> tuple[list[dict[str, object]], list[str]]:
+    """Extract local meaning paragraphs and validate one per content-bearing unit."""
+    headings: list[dict[str, object]] = []
+    stack: list[int] = []
+
+    for line_number, line in enumerate(text.splitlines(), start=1):
+        match = HEADING_RE.fullmatch(line.strip())
+        if match:
+            level = len(match.group(1))
+            while stack and int(headings[stack[-1]]["level"]) >= level:
+                stack.pop()
+            headings.append(
+                {
+                    "raw": line.strip(),
+                    "level": level,
+                    "title": match.group(3).strip(),
+                    "line": line_number,
+                    "direct_lines": [],
+                }
+            )
+            stack.append(len(headings) - 1)
+            continue
+        if stack:
+            direct_lines = headings[stack[-1]]["direct_lines"]
+            assert isinstance(direct_lines, list)
+            direct_lines.append((line_number, line))
+
+    annotations: list[dict[str, object]] = []
+    errors: list[str] = []
+    for heading in headings:
+        title = str(heading["title"])
+        direct_lines = list(heading["direct_lines"])
+        meaningful_lines = [
+            (line_number, line)
+            for line_number, line in direct_lines
+            if line.strip()
+            and line.strip() not in {"---", "***", "___"}
+            and not line.strip().startswith("<!--")
+        ]
+        content_lines = [
+            (line_number, line)
+            for line_number, line in meaningful_lines
+            if not MEANING_RE.fullmatch(line.strip())
+        ]
+        if title in MEANING_EXEMPT_HEADINGS or not content_lines:
+            continue
+
+        meaning_lines = [
+            (line_number, line, MEANING_RE.fullmatch(line.strip()))
+            for line_number, line in meaningful_lines
+            if MEANING_RE.fullmatch(line.strip())
+        ]
+        raw_heading = str(heading["raw"])
+        if not meaning_lines:
+            errors.append(
+                f"line {heading['line']}: missing final '**의미.**' paragraph for {raw_heading}"
+            )
+            continue
+        if len(meaning_lines) > 1:
+            errors.append(
+                f"line {heading['line']}: multiple '**의미.**' paragraphs for {raw_heading}"
+            )
+            continue
+
+        line_number, _, match = meaning_lines[0]
+        assert match is not None
+        if meaningful_lines[-1][0] != line_number:
+            errors.append(
+                f"line {line_number}: '**의미.**' must be the final direct paragraph for {raw_heading}"
+            )
+        annotations.append(
+            {
+                "heading": raw_heading,
+                "selection_with_ellipsis": _selection_with_ellipsis(raw_heading),
+                "comment": match.group(1).strip(),
+                "line": line_number,
+            }
+        )
+    return annotations, errors
+
+
+def build_notion_payload(text: str) -> tuple[dict[str, object], list[str]]:
+    """Remove local explanations and convert blockquotes to Notion callouts."""
+    annotations, errors = parse_meaning_annotations(text)
+    if errors:
+        return {}, errors
+    meaning_lines = {int(annotation["line"]) for annotation in annotations}
+    source_lines = text.splitlines()
+    notion_lines: list[str] = []
+    callout_count = 0
+    index = 0
+    while index < len(source_lines):
+        line_number = index + 1
+        line = source_lines[index]
+        if line_number in meaning_lines:
+            index += 1
+            continue
+        if line.lstrip().startswith(">"):
+            callout_lines: list[str] = []
+            while index < len(source_lines) and source_lines[index].lstrip().startswith(">"):
+                stripped = source_lines[index].lstrip()[1:]
+                callout_lines.append(stripped[1:] if stripped.startswith(" ") else stripped)
+                index += 1
+            notion_lines.append('<callout icon="📌" color="gray_background">')
+            notion_lines.extend(callout_lines)
+            notion_lines.append("</callout>")
+            callout_count += 1
+            continue
+        notion_lines.append(line)
+        index += 1
+    return {
+        "body": "\n".join(notion_lines).rstrip() + "\n",
+        "comments": annotations,
+        "callout_count": callout_count,
+    }, []
 
 
 def validate_meeting(args: argparse.Namespace) -> int:
@@ -93,12 +228,47 @@ def validate_meeting(args: argparse.Namespace) -> int:
 
     if "!image.png" in text:
         errors.append("unresolved !image.png placeholder")
+    annotations, meaning_errors = parse_meaning_annotations(text)
+    errors.extend(meaning_errors)
     if errors:
         print("validation failed:")
         for error in errors:
             print(f"- {error}")
         return 1
-    print(f"validation passed: {meeting.relative_to(repo)} ({len(seen)} figure links)")
+    print(
+        f"validation passed: {meeting.relative_to(repo)} "
+        f"({len(seen)} figure links, {len(annotations)} meaning comments)"
+    )
+    return 0
+
+
+def emit_comments(args: argparse.Namespace) -> int:
+    repo = args.repo.resolve()
+    meeting = args.meeting if args.meeting.is_absolute() else repo / args.meeting
+    if not meeting.is_file():
+        raise SystemExit(f"meeting file does not exist: {meeting}")
+    annotations, errors = parse_meaning_annotations(meeting.read_text(encoding="utf-8"))
+    if errors:
+        print("comment extraction failed:")
+        for error in errors:
+            print(f"- {error}")
+        return 1
+    print(json.dumps(annotations, ensure_ascii=False, indent=2))
+    return 0
+
+
+def emit_notion_payload(args: argparse.Namespace) -> int:
+    repo = args.repo.resolve()
+    meeting = args.meeting if args.meeting.is_absolute() else repo / args.meeting
+    if not meeting.is_file():
+        raise SystemExit(f"meeting file does not exist: {meeting}")
+    payload, errors = build_notion_payload(meeting.read_text(encoding="utf-8"))
+    if errors:
+        print("Notion payload generation failed:")
+        for error in errors:
+            print(f"- {error}")
+        return 1
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
     return 0
 
 
@@ -121,6 +291,18 @@ def main() -> int:
     validate_parser.add_argument("--repo", type=Path, default=Path.cwd())
     validate_parser.add_argument("--meeting", type=Path, required=True)
 
+    comments_parser = subparsers.add_parser(
+        "comments", help="Emit Notion comment mappings from local meaning paragraphs"
+    )
+    comments_parser.add_argument("--repo", type=Path, default=Path.cwd())
+    comments_parser.add_argument("--meeting", type=Path, required=True)
+
+    notion_parser = subparsers.add_parser(
+        "notion", help="Emit a callout body and heading-comment mappings for Notion"
+    )
+    notion_parser.add_argument("--repo", type=Path, default=Path.cwd())
+    notion_parser.add_argument("--meeting", type=Path, required=True)
+
     args = parser.parse_args()
     if args.command == "next":
         _, path = next_path(args.repo, args.date)
@@ -130,6 +312,10 @@ def main() -> int:
         if args.number is not None and args.number < 1:
             raise SystemExit("--number must be positive")
         return import_figure(args)
+    if args.command == "comments":
+        return emit_comments(args)
+    if args.command == "notion":
+        return emit_notion_payload(args)
     return validate_meeting(args)
 
 

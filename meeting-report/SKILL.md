@@ -1,6 +1,6 @@
 ---
 name: meeting-report
-description: Create or update weekly research meeting notes by comparing the previous meeting with current verified repository, experiment, and artifact evidence. Use in projects whose root contains `AGENTS.md`, `CLAUDE.md`, and `docs/`, especially when asked to prepare or refresh `docs/meetings/mmdd_meeting.md`, report progress since the last meeting, or organize meeting figures under `docs/figures/mmdd_fig#.png`.
+description: Create or update compact, evidence-backed weekly research meeting briefs with local follow-up explanations, organize meeting figures, and optionally mirror the validated report into a project-specific Notion database using callouts and section-anchored explanation comments. Use in projects whose root contains `AGENTS.md`, `CLAUDE.md`, and `docs/`, especially when asked to prepare or refresh `docs/meetings/mmdd_meeting.md`, report progress since the last meeting, organize `docs/figures/mmdd_fig#.png`, create a reusable Notion meeting archive, or explicitly publish meeting material to Notion.
 ---
 
 # Meeting Report
@@ -91,7 +91,18 @@ Never emit unresolved placeholders, absolute local paths, or links to transient 
 
 Read [references/meeting-style.md](references/meeting-style.md) before drafting. Use [assets/meeting-template.md](assets/meeting-template.md) as a flexible scaffold, not mandatory fixed sections.
 
-Infer language, heading depth, terminology, equation density, table style, and status vocabulary from the recent meeting files. Preserve useful conventions while correcting malformed links, typos, and stale scientific claims.
+Use the compact briefing contract below unless the user explicitly requests another format:
+
+1. Make the first non-empty line `# 1. <short noun phrase>`. Do not add a document title, draft timestamp, reporting disclaimer, or introductory preface.
+2. Use `# 1. Summary` as a blockquoted numbered agenda. List only the topics to be discussed; do not place findings or narrative in the summary.
+3. Number every section and subsection. Use short noun-phrase headings such as `Baseline`, `Adapter reuse`, or `Flow encoding`; never use a question or sentence as a heading.
+4. Prefer bullets and tables over paragraphs. In Korean, end bullets with nouns or compact fragments rather than `~이다`, `~한다`, or lab-notebook narration. Reserve prose for a caveat that cannot remain precise as a fragment.
+5. Follow a table with only the few bullets needed to state the result and trade-off. Do not restate every cell in prose.
+6. Rewrite repository-local run tags, aliases, and shorthand into reader-facing technical names. For example, prefer `16-frame self-routed video baseline` over an internal checkpoint tag, `frame-chunk autoregressive schedule` over a schedule nickname, and `gamma-companded flow encoding` over a bare encoding acronym. Retain an internal alias once in parentheses only when required for artifact provenance.
+7. Keep protocol, sample count, uncertainty, status, and decision boundaries explicit even when compressing the wording.
+8. End every content-bearing numbered section or subsection with one local prose paragraph beginning `**의미.**`. Explain what the preceding evidence establishes, how it changes the research interpretation, and which follow-up question it enables. Exempt `Summary`, `TODO`, `References`, and container headings with no direct body. Keep this paragraph in the repository Markdown even when the Notion mirror moves it into a comment.
+
+Infer language, heading depth, equation density, table style, and status vocabulary from recent accepted meeting files without weakening this contract. Preserve useful conventions while correcting malformed links, typos, stale scientific claims, and unexplained internal terminology.
 
 Lead with what changed since the previous meeting. Preserve uncertainty and avoid inflated claims, diary narration, generic AI transitions, and repeated background already covered previously.
 
@@ -105,7 +116,31 @@ Lead with what changed since the previous meeting. Preserve uncertainty and avoi
      --repo <project-root> --meeting docs/meetings/mmdd_meeting.md
    ```
 
-3. Search for unresolved placeholders, stale statuses, unsupported superlatives, and metric-direction mistakes.
-4. Inspect `git diff` without altering unrelated user changes.
-5. Report the meeting path, comparison baseline, figure paths, evidence still missing, and any living-doc synchronization performed.
+   Validation also requires one final `**의미.**` paragraph for every content-bearing numbered unit.
+3. Preview the exact Notion comment mapping when publication is requested:
 
+   ```bash
+   python <skill-dir>/scripts/meeting_assets.py comments \
+     --repo <project-root> --meeting docs/meetings/mmdd_meeting.md
+   ```
+
+   Treat the emitted heading, selection anchor, and explanation as a stable mapping. Do not paraphrase the explanation during publication.
+   Generate the publication body and comment mappings together before writing:
+
+   ```bash
+   python <skill-dir>/scripts/meeting_assets.py notion \
+     --repo <project-root> --meeting docs/meetings/mmdd_meeting.md
+   ```
+
+   Use the emitted `body` and `comments` rather than manually reformatting the local document.
+4. Search for unresolved placeholders, stale statuses, unsupported superlatives, metric-direction mistakes, sentence-like headings, and unexplained repository-local aliases. Apply the noun-ending rule to bullets; allow natural declarative prose inside `**의미.**` paragraphs.
+5. Inspect `git diff` without altering unrelated user changes.
+6. Report the meeting path, comparison baseline, figure paths, evidence still missing, and any living-doc synchronization performed.
+
+## 8. Optionally publish to Notion
+
+Keep the validated local meeting Markdown and imported PNGs as the canonical research record. Publish to Notion only when the user explicitly requests it; preparing a meeting report alone does not authorize an external write.
+
+When Notion publication is requested, read [references/notion-publishing.md](references/notion-publishing.md) completely and follow it after local validation. Resolve the parent with `scripts/notion_destination.py` from an explicit request, repository environment, or interactive clarification. Under a parent page, reuse or create one list database whose title is the project name, then upsert one `mmdd_meeting` page per local report. Match an existing project title case-insensitively before creating anything. Convert every local blockquote group—including the Summary agenda—to a native Notion callout, omit each local `**의미.**` paragraph from the Notion page body, and attach its exact prose as a comment on the corresponding numbered heading. Use the available Notion connector rather than direct HTTP or stored credentials, preserve content and comments outside the skill-owned page, and read both the page and its discussions back before reporting success.
+
+If the Notion connector is unavailable, authentication is incomplete, the destination is ambiguous, or required figures cannot be transferred or linked durably, finish the local report and describe Notion publication as blocked or partial. Never silently omit evidence or claim that publication completed.
